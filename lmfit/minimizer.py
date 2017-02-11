@@ -1344,9 +1344,9 @@ class Minimizer(object):
         | :meth:`brute` arg | Value | Description                                                           |
         +===================+=======+=======================================================================+
         +-------------------+-------+-----------------------------------------------------------------------+
-        |   full_output     | 1     | Return the evaluation grid and the objective function’s values on it. |
+        |   full_output     | 1     | Return the evaluation grid and the objective function's values on it. |
         +-------------------+-------+-----------------------------------------------------------------------+
-        |   finish          | None  | No “polishing” function is to be used after the grid search.          |
+        |   finish          | None  | No "polishing" function is to be used after the grid search.          |
         +-------------------+-------+-----------------------------------------------------------------------+
         |   disp            | False | Do not print convergence messages (when finish is not None).          |
         +-------------------+-------+-----------------------------------------------------------------------+
