@@ -7,8 +7,9 @@ as a simple expression of other Fit Parameters.
 The user sets up a model in terms of instance of Parameters, writes a
 function-to-be-minimized (residual function) in terms of these Parameters.
 
+Original copyright:
    Copyright (c) 2011 Matthew Newville, The University of Chicago
-   <newville@cars.uchicago.edu>
+See LICENSE for more complete authorship information and license.
 """
 
 from collections import namedtuple
@@ -181,29 +182,28 @@ def reduce_cauchylogpdf(r):
 
 class MinimizerResult(object):
     """
-    A class that holds the results of a minimization.
+    The result of a minimization.
 
-    This is a plain container (with no methods of its own) that
-    simply holds the results of the minimization.  Fit results
-    include data such as status and error messages, fit statistics,
-    and the updated (i.e., best-fit) parameters themselves :attr:`params`.
+    Minimization results include data such as status, error messages, fit
+    statistics, and the updated (i.e., best-fit) parameters themselves
+    :attr:`params`.
 
-    The list of (possible) `MinimizerResult` attributes follows.
+    The list of typical attributes of `MinimizerResult` follows.
 
     Attributes
     ----------
     params : :class:`lmfit.parameter.Parameters`
         The best-fit parameters resulting from the fit.
     status : int
-        Termination status of the optimizer. Its value depends on the
-        underlying solver. Refer to `message` for details.
+        Termination status of the optimizer. The meaning of its value depends
+        on the underlying solver. Refer to `message` for details.
     var_names : list
         Ordered list of variable parameter names used in optimization, and
-        useful for understanding the the values in :attr:`init_vals` and
-        :attr:`covar`.
+        useful for understanding the the values in lists and arrays including
+        :attr:`init_vals` and :attr:`covar`.
     covar : numpy.ndarray
-        Covariance matrix from minimization (`leastsq` only), with
-        rows/columns using :attr:`var_names`.
+        Covariance matrix from minimization (`leastsq` methods only), with
+        rows and columns corresponding to :attr:`var_names`.
     init_vals : list
         List of initial values for variable parameters using :attr:`var_names`.
     init_values : dict
@@ -227,8 +227,8 @@ class MinimizerResult(object):
     nfree : int
         Degrees of freedom in fit:  :math:`N - N_{\\rm varys}`.
     residual : numpy.ndarray
-        Residual array :math:`{\\rm Resid_i}`. Return value of the objective
-        function.
+        Residual array :math:`{\\rm Resid_i}`, as returned from the objective
+        function with the best-fit values for the parameters.
     chisqr : float
         Chi-square: :math:`\chi^2 = \sum_i^N [{\\rm Resid}_i]^2`.
     redchi : float
@@ -236,8 +236,18 @@ class MinimizerResult(object):
         :math:`\chi^2_{\\nu}= {\chi^2} / {(N - N_{\\rm varys})}`.
     aic : float
         Akaike Information Criterion statistic.
+        :math:`N \ln(\chi^2/N) + 2 N_{\\rm varys}`
     bic : float
         Bayesian Information Criterion statistic.
+        :math:`N \ln(\chi^2/N) + \ln(N) N_{\\rm varys}`
+
+    flatchain : pandas.DataFrame
+        a flatchain view of the sampling chain from the `emcee` method.
+
+    Methods
+    ----------
+    show_candidates:  pretty_print() representaiton of candidates from
+       `brute` method.
 
     """
     def __init__(self, **kws):
@@ -276,6 +286,74 @@ class MinimizerResult(object):
 
 class Minimizer(object):
     """A general minimizer for curve fitting and optimization.
+
+    The Minimizer class initialization accepts the following parameters:
+
+    Arguments
+    ----------
+    userfcn : callable
+        objective function that returns the residual (typically, the scaled
+        difference between model and data) to be minimized (typically, in a
+        least squares sense).  The function must have the signature:
+
+            `userfcn(params, *fcn_args, **fcn_kws)`
+
+        where `params, `fcn_args`, and `fcn_kws` are described below.
+    params : :class:`lmfit.parameter.Parameters` object.
+        Parameters for the minimization problem, passed to `userfcn`.
+    fcn_args : tuple, optional
+        Positional arguments to pass to `userfcn`.
+    fcn_kws : dict, optional
+        Keyword arguments to pass to `userfcn`.
+    iter_cb : callable, optional
+        Function to be called at each fit iteration. This function must have
+        the signature:
+
+            `iter_cb(params, iter, resid, *fcn_args, **fcn_kws)`,
+
+        where `params` will have the current parameter values, `iter` the
+        iteration, `resid` the current residual array, and `*fcn_args` and
+        `**fcn_kws` as passed to the objective function.
+    scale_covar : bool, optional
+        Whether to automatically scale the covariance matrix (`leastsq` only).
+        [`True`]
+    nan_policy : str, optional
+        Specifies action if `userfcn` (or a Jacobian) returns nan
+        values. One of:
+         - 'raise' - a `ValueError` is raised [default]
+         - 'propagate' - the values returned from `userfcn` are un-altered
+         - 'omit' - the non-finite values are filtered.
+    reduce_fcn : str or callable, optional
+        Function to convert a residual array to a scalar value for the scalar
+        minimizers. Optional values are (where `r` is the residual array):
+         - None           : sum of squares of residual [default]
+                            (r*r).sum()
+         - 'negentropy'   : neg entropy, using normal distribution
+                            (rho*log(rho)).sum() for rho=exp(-r*r/2)/(sqrt(2*pi))
+         - 'neglogcauchy' : neg log likelihood, using Cauchy distribution
+                            -log(1/(pi*(1+r*r))).sum()
+         - callable       : must take 1 argument (r) and return a float.
+     kws : dict, optional
+        Options to pass to the minimizer being used.
+    Notes
+    -----
+    The objective function should return the value to be minimized. For the
+    Levenberg-Marquardt algorithm from :meth:`leastsq` or
+    :meth:`least_squares`, this returned value must
+    be an array, with a length greater than or equal to the number of
+    fitting variables in the model. For the other methods, the return value
+    can either be a scalar or an array. If an array is returned, the sum of
+    squares of the array will be sent to the underlying fitting method,
+    effectively doing a least-squares optimization of the return values. If
+    the objective function returns non-finite values then a `ValueError`
+    will be raised because the underlying solvers cannot deal with them.
+
+    A common use for the `fcn_args` and `fcn_kws` would be to pass in
+    other data needed to calculate the residual, including such things
+    as the data array, dependent variable, uncertainties in the data,
+    and other data structures for the model calculation.
+
+
     """
     _err_nonparam = ("params must be a minimizer.Parameters() instance or list "
                      "of Parameters()")
