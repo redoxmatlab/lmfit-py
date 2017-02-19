@@ -257,7 +257,7 @@ class MinimizerResult(object):
     @property
     def flatchain(self):
         """
-        A flatchain view of the sampling chain from the `emcee` method.
+        return a flatchain view of the sampling chain from the `emcee` method.
         """
         if hasattr(self, 'chain'):
             if HAS_PANDAS:
@@ -289,43 +289,50 @@ class Minimizer(object):
 
     The Minimizer class initialization accepts the following parameters:
 
-    Arguments
+    Parameters
     ----------
     userfcn : callable
         objective function that returns the residual (typically, the scaled
         difference between model and data) to be minimized (typically, in a
-        least squares sense).  The function must have the signature:
+        least squares sense).  The function must have the signature::
 
-            `userfcn(params, *fcn_args, **fcn_kws)`
+            userfcn(params, *fcn_args, **fcn_kws)
 
         where `params, `fcn_args`, and `fcn_kws` are described below.
+
     params : :class:`lmfit.parameter.Parameters` object.
         Parameters for the minimization problem, passed to `userfcn`.
-    fcn_args : tuple, optional
-        Positional arguments to pass to `userfcn`.
-    fcn_kws : dict, optional
-        Keyword arguments to pass to `userfcn`.
-    iter_cb : callable, optional
-        Function to be called at each fit iteration. This function must have
-        the signature:
 
-            `iter_cb(params, iter, resid, *fcn_args, **fcn_kws)`,
+    fcn_args : tuple, optional, default `None`
+        Positional arguments to pass to `userfcn`.
+
+    fcn_kws : dict, optional, default `None`
+        Keyword arguments to pass to `userfcn`.
+
+    iter_cb : callable, optional, default `None`
+        Function to be called at each fit iteration. This function must have
+        the signature::
+
+            iter_cb(params, iter, resid, *fcn_args, **fcn_kws)
 
         where `params` will have the current parameter values, `iter` the
         iteration, `resid` the current residual array, and `*fcn_args` and
         `**fcn_kws` as passed to the objective function.
-    scale_covar : bool, optional
-        Whether to automatically scale the covariance matrix (`leastsq` only).
-        [`True`]
-    nan_policy : str, optional
-        Specifies action if `userfcn` (or a Jacobian) returns nan
-        values. One of:
-         - 'raise' - a `ValueError` is raised [default]
-         - 'propagate' - the values returned from `userfcn` are un-altered
-         - 'omit' - the non-finite values are filtered.
-    reduce_fcn : str or callable, optional
+
+    scale_covar : bool, optional, default `True`
+        Whether to automatically scale the covariance matrix. `leastsq` only.
+
+    nan_policy : str, optional, default `raise`
+        Specifies action if `userfcn` (or a Jacobian) returns `nan` values. One of
+
+         - 'raise':  a `ValueError` is raised [default]
+         - 'propagate': the values returned from `userfcn` are un-altered
+         - 'omit'      : the non-finite values are filtered.
+
+    reduce_fcn : str or callable, optional, default `None`
         Function to convert a residual array to a scalar value for the scalar
-        minimizers. Optional values are (where `r` is the residual array):
+        minimizers. Optional values are (where `r` is the residual array).
+
          - None           : sum of squares of residual [default]
                             (r*r).sum()
          - 'negentropy'   : neg entropy, using normal distribution
@@ -333,8 +340,10 @@ class Minimizer(object):
          - 'neglogcauchy' : neg log likelihood, using Cauchy distribution
                             -log(1/(pi*(1+r*r))).sum()
          - callable       : must take 1 argument (r) and return a float.
-     kws : dict, optional
+
+     kws : dict, optional, default `None`
         Options to pass to the minimizer being used.
+
     Notes
     -----
     The objective function should return the value to be minimized. For the
@@ -352,9 +361,8 @@ class Minimizer(object):
     other data needed to calculate the residual, including such things
     as the data array, dependent variable, uncertainties in the data,
     and other data structures for the model calculation.
-
-
     """
+
     _err_nonparam = ("params must be a minimizer.Parameters() instance or list "
                      "of Parameters()")
     _err_maxfev = ("Too many function calls (max set to %i)!  Use:"
@@ -364,70 +372,6 @@ class Minimizer(object):
     def __init__(self, userfcn, params, fcn_args=None, fcn_kws=None,
                  iter_cb=None, scale_covar=True, nan_policy='raise',
                  reduce_fcn=None, **kws):
-        """
-        The Minimizer class initialization accepts the following parameters:
-
-        Parameters
-        ----------
-        userfcn : callable
-            Objective function that returns the residual (difference between
-            model and data) to be minimized in a least squares sense.  The
-            function must have the signature:
-            `userfcn(params, *fcn_args, **fcn_kws)`
-        params : :class:`lmfit.parameter.Parameters` object.
-            Contains the Parameters for the model.
-        fcn_args : tuple, optional
-            Positional arguments to pass to `userfcn`.
-        fcn_kws : dict, optional
-            Keyword arguments to pass to `userfcn`.
-        iter_cb : callable, optional
-            Function to be called at each fit iteration. This function should
-            have the signature:
-            `iter_cb(params, iter, resid, *fcn_args, **fcn_kws)`,
-            where `params` will have the current parameter values, `iter`
-            the iteration, `resid` the current residual array, and `*fcn_args`
-            and `**fcn_kws` as passed to the objective function.
-        scale_covar : bool, optional
-            Whether to automatically scale the covariance matrix (leastsq
-            only).
-        nan_policy : str, optional
-            Specifies action if `userfcn` (or a Jacobian) returns nan
-            values. One of:
-             - 'raise' - a `ValueError` is raised
-             - 'propagate' - the values returned from `userfcn` are un-altered
-             - 'omit' - the non-finite values are filtered.
-        reduce_fcn : str or callable, optional
-            Function to convert a residual array to a scalar value for the scalar
-            minimizers. Optional values are (where `r` is the residual array):
-             - None           : sum of squares of residual [default]
-                                (r*r).sum()
-             - 'negentropy'   : neg entropy, using normal distribution
-                                (rho*log(rho)).sum() for rho=exp(-r*r/2)/(sqrt(2*pi))
-             - 'neglogcauchy' : neg log likelihood, using Cauchy distribution
-                                -log(1/(pi*(1+r*r))).sum()
-             - callable       : must take 1 argument (r) and return a float.
-
-        kws : dict, optional
-            Options to pass to the minimizer being used.
-
-        Notes
-        -----
-        The objective function should return the value to be minimized. For the
-        Levenberg-Marquardt algorithm from :meth:`leastsq` or
-        :meth:`least_squares`, this returned value must
-        be an array, with a length greater than or equal to the number of
-        fitting variables in the model. For the other methods, the return value
-        can either be a scalar or an array. If an array is returned, the sum of
-        squares of the array will be sent to the underlying fitting method,
-        effectively doing a least-squares optimization of the return values. If
-        the objective function returns non-finite values then a `ValueError`
-        will be raised because the underlying solvers cannot deal with them.
-
-        A common use for the `fcn_args` and `fcn_kws` would be to pass in
-        other data needed to calculate the residual, including such things
-        as the data array, dependent variable, uncertainties in the data,
-        and other data structures for the model calculation.
-        """
         self.userfcn = userfcn
         self.userargs = fcn_args
         if self.userargs is None:
@@ -472,17 +416,17 @@ class Minimizer(object):
         calculate the residual.
 
         Parameters
-        ----------------
+        ----------
         fvars : np.ndarray
             Array of new parameter values suggested by the minimizer.
-        apply_bounds_transformation : bool, optional
-            If true, apply lmfits parameter transformation to constrain
+        apply_bounds_transformation : bool, optional, default `True`
+            whether to apply lmfits parameter transformation to constrain
             parameters. This is needed for solvers without inbuilt support for
             bounds.
 
         Returns
-        -----------
-        residuals : np.ndarray
+        -------
+        residual : np.ndarray
              The evaluated function values for given fvars.
         """
         # set parameter values
@@ -517,6 +461,7 @@ class Minimizer(object):
     def __jacobian(self, fvars):
         """
         analytical jacobian to be used with the Levenberg-Marquardt
+
 
         modified 02-01-2012 by Glenn Jones, Aberystwyth University
         modified 06-29-2015 M Newville to apply gradient scaling
@@ -1447,22 +1392,23 @@ class Minimizer(object):
 
         Returns
         -------
-        :class:`MinimizerResult`
-            Object containing the parameters from the brute force method.
-            The return values (`x0`, `fval`, `grid`, `Jout`) from
-            :scipydoc:`optimize.brute` are stored as `brute_<parname>` attributes.
-            The `MinimizerResult` also contains the `candidates` attribute and
-            `show_candidates()` method. The `candidates` attribute contains the
-            parameters and chisqr from the brute force method as a namedtuple,
-            ('Candidate', ['params', 'score']), sorted on the (lowest) chisqr
-            value. To access the values for a particular candidate one can use
-            `result.candidate[#].params` or `result.candidate[#].score`, where
-            a lower # represents a better candidate. The `show_candidates(#)`
-            uses the :meth:`pretty_print` method to show a specific candidate-#
-            or all candidates when no number is specified.
+            :class:`MinimizerResult` containing parameters from the brute
+            force method.  The return values (`x0`, `fval`, `grid`, `Jout`)
+            from :scipydoc:`optimize.brute` are stored as `brute_<parname>`
+            attributes.  The `MinimizerResult` also contains the
+            `candidates` attribute and `show_candidates()` method. The
+            `candidates` attribute contains the parameters and chisqr from
+            the brute force method as a namedtuple, ('Candidate',
+            ['params', 'score']), sorted on the (lowest) chisqr value. To
+            access the values for a particular candidate one can use
+            `result.candidate[#].params` or `result.candidate[#].score`,
+            where a lower # represents a better candidate. The
+            `show_candidates(#)` uses the :meth:`pretty_print` method to
+            show a specific candidate-# or all candidates when no number is
+            specified.
 
 
-        .. versionadded:: 0.96
+        .. versionadded:: 0.9.6
 
 
         Notes
@@ -1567,7 +1513,7 @@ class Minimizer(object):
         Perform the minimization.
 
         Parameters
-        ----------
+        ---------
         method : str, optional
             Name of the fitting method to use. Valid values are:
 
@@ -1575,7 +1521,7 @@ class Minimizer(object):
               Uses `scipy.optimize.leastsq`.
             - `'least_squares'`: Levenberg-Marquardt.
               Uses `scipy.optimize.least_squares`.
-            - 'nelder': Nelder-Mead
+            - `'nelder'`: Nelder-Mead
             - `'lbfgsb'`: L-BFGS-B
             - `'powell'`: Powell
             - `'cg'`: Conjugate-Gradient
@@ -1858,7 +1804,7 @@ def minimize(fcn, params, method='leastsq', args=None, kws=None,
           Uses `scipy.optimize.leastsq`.
         - `'least_squares'`: Levenberg-Marquardt.
           Uses `scipy.optimize.least_squares`.
-        - 'nelder': Nelder-Mead
+        - `'nelder'`: Nelder-Mead
         - `'lbfgsb'`: L-BFGS-B
         - `'powell'`: Powell
         - `'cg'`: Conjugate-Gradient
